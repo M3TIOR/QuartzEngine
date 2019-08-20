@@ -38,14 +38,12 @@
 #include <Quartz/Graphics/ImGuiExtensions.hpp>
 
 #if defined(QZ_PLATFORM_WINDOWS)
-	#include <windows.h>
+	#include <Windows.h>
 #elif defined(QZ_PLATFORM_LINUX)
 	#include <stdlib.h>
 	#include <unistd.h>
 	#include <spawn.h>
 	#include <sys/wait.h>
-#else
-	#error "Couldn't identify platform"
 #endif
 
 #define QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, corner, pos_macro, bg_alpha, content_macro, additional_flags) \
