@@ -36,8 +36,51 @@
 #include <Quartz/Graphics/Camera.hpp>
 #include <Quartz/Graphics/ForwardMeshRenderer.hpp>
 #include <Quartz/Graphics/ImGuiExtensions.hpp>
-#include <Quartz/Voxels/Blocks.hpp>
-#include <Quartz/Voxels/Terrain.hpp>
+
+#if defined(QZ_PLATFORM_WINDOWS)
+	#include <windows.h>
+#elif defined(QZ_PLATFORM_LINUX)
+	#include <stdlib.h>
+	#include <unistd.h>
+	#include <spawn.h>
+	#include <sys/wait.h>
+#else
+	#error "Couldn't identify platform"
+#endif
+
+#define QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, corner, pos_macro, bg_alpha, content_macro) \
+	static void show##name##Ui() \
+	{ \
+		static bool p_open = true; \
+		pos_macro \
+		ImGui::SetNextWindowBgAlpha(bg_alpha); \
+		if (ImGui::Begin("Debug Overlay Hint", &p_open, \
+				(corner != -1 ? ImGuiWindowFlags_NoMove : 0) | \
+				ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | \
+				ImGuiWindowFlags_AlwaysAutoResize | \
+				ImGuiWindowFlags_NoSavedSettings | \
+				ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav)) \
+		{ \
+			content_macro \
+		} \
+		ImGui::End(); \
+	}
+#define QZ_MAKE_UX_POS(x, y) \
+	ImVec2 window_pos(x, y); \
+	ImVec2 window_pos_pivot(0.0f, 0.0f); \
+	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+#define QZ_MAKE_UX_CORNER_POS(corner, dist) \
+	ImGuiIO& io = ImGui::GetIO(); \
+	ImVec2 window_pos = \
+	    ImVec2((corner & 1) ? io.DisplaySize.x - dist : dist, \
+	           (corner & 2) ? io.DisplaySize.y - dist : dist); \
+	ImVec2 window_pos_pivot = \
+	    ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f); \
+	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+#define QZ_MAKE_UX_ELEM_NO_WINDOW_DEFAULT(name, x, y, content) \
+	QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, 0, QZ_MAKE_UX_POS(x, y), 0.0f, content)
+#define QZ_MAKE_UX_ELEM_CORNERED_BG_ALPHA(name, corner, bg_alpha, content) \
+	QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, corner, QZ_MAKE_UX_CORNER_POS(corner, 10.0f), bg_alpha, content)
 
 using namespace launcher;
 using namespace qz;
@@ -49,38 +92,10 @@ Launcher::Launcher()
 
 	utils::Logger::instance()->initialise("Launcher.log",
 	                                      utils::LogVerbosity::DEBUG);
+	spawnProcess("/bin/ls", {"-l", "-a", "-s"});
 }
 
-static void showHintUi()
-{
-	const float DISTANCE = 10.0f;
-	const int   corner   = 1;
-	static bool p_open   = true;
-
-	ImGuiIO& io = ImGui::GetIO();
-
-	ImVec2 window_pos =
-	    ImVec2((corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE,
-	           (corner & 2) ? io.DisplaySize.y - DISTANCE : DISTANCE);
-	ImVec2 window_pos_pivot =
-	    ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
-	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
-
-	ImGui::SetNextWindowBgAlpha(0.3f);
-
-	if (ImGui::Begin(
-	        "Debug Overlay Hint", &p_open,
-	        (corner != -1 ? ImGuiWindowFlags_NoMove : 0) |
-	            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-	            ImGuiWindowFlags_AlwaysAutoResize |
-	            ImGuiWindowFlags_NoSavedSettings |
-	            ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
-	{
-		ImGui::Text("info box here");
-	}
-
-	ImGui::End();
-}
+QZ_MAKE_UX_ELEM_CORNERED_BG_ALPHA(Hint, 1, 0.3f, ImGui::Text("info box here");)
 
 void Launcher::run()
 {
@@ -217,6 +232,60 @@ void Launcher::onEvent(const events::Event& e)
 	{
 		m_camera->resizeProjection(e);
 	}
+}
+
+void Launcher::spawnProcess(const char* fullpath, std::initializer_list<const char*> args)
+{
+#if defined(QZ_PLATFORM_WINDOWS)
+	STARTUPINFO siStartupInfo;
+	PROCESS_INFORMATION piProcessInfo;
+
+	// set the size of the structures
+	ZeroMemory(&siStartupInfo, sizeof(siStartupInfo));
+	siStartupInfo.cb = sizeof(siStartupInfo);
+	ZeroMemory(&piProcessInfo, sizeof(piProcessInfo));
+
+	std::string str_cmd(fullpath);
+
+	size_t length = strlen(fullpath) + 1;
+	for (const char* arg : args)
+	{
+		length += strlen(arg) + 1;
+		str_cmd += " ";
+		str_cmd += arg;
+	}
+	wchar_t* command = new wchar_t[length];
+	mbstowcs(command, str_cmd.c_str(), length);
+
+	if (CreateProcessW(NULL, (LPWSTR) command,
+		0, 0, false, CREATE_DEFAULT_ERROR_MODE | CREATE_NO_WINDOW | DETACHED_PROCESS,
+		0, 0, &siStartupInfo, &piProcessInfo) == false)
+	{
+		LFATAL("Couldn't build process, error code: ", GetLastError());
+	}
+	delete[] command;
+#elif defined(QZ_PLATFORM_LINUX)
+	pid_t pid;
+	char** argv = new char*[2 + args.size()];
+	argv[0] = strdup(fullpath);
+	std::size_t i = 0;
+	for (const char* elem : args)
+	{
+		argv[1 + i] = strdup(elem);
+		i++;
+	}
+	argv[1 + args.size()] = (char *) 0;
+
+	int status = posix_spawn(&pid, fullpath, NULL, NULL, argv, environ);
+	if (status != 0)
+	{
+		LFATAL("Failed posix_spawn: ", strerror(status));
+	}
+
+	for (int i=0; i < 2 + args.size(); ++i)
+		delete[] argv[i];
+	delete[] argv;
+#endif  // QZ_PLATFORM
 }
 
 #undef main

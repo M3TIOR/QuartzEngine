@@ -34,6 +34,8 @@
 
 #include <Launcher/DebugOverlay.hpp>
 
+#include <initializer_list>
+
 namespace launcher
 {
 	class Launcher : public qz::events::IEventListener
@@ -45,10 +47,11 @@ namespace launcher
 		void onEvent(const qz::events::Event& e) override;
 
 	private:
+		void spawnProcess(const char* fullpath, std::initializer_list<const char*> args);
+
 		qz::gfx::FPSCamera*          m_camera       = nullptr;
 		qz::gfx::rhi::IRenderDevice* m_renderDevice = nullptr;
 		qz::gfx::IWindow*            m_window       = nullptr;
-		bool                         m_debugMode    = false;
 		launcher::DebugOverlay       m_debug;
 	};
 } // namespace launcher
