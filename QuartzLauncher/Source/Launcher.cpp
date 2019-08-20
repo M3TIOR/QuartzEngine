@@ -48,23 +48,25 @@
 	#error "Couldn't identify platform"
 #endif
 
-#define QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, corner, pos_macro, bg_alpha, content_macro) \
+#define QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, corner, pos_macro, bg_alpha, content_macro, additional_flags) \
 	static void show##name##Ui() \
 	{ \
 		static bool p_open = true; \
 		pos_macro \
 		ImGui::SetNextWindowBgAlpha(bg_alpha); \
-		if (ImGui::Begin("Debug Overlay Hint", &p_open, \
+		if (ImGui::Begin("Debug Overlay Hint" #name, &p_open, \
 				(corner != -1 ? ImGuiWindowFlags_NoMove : 0) | \
 				ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | \
 				ImGuiWindowFlags_AlwaysAutoResize | \
 				ImGuiWindowFlags_NoSavedSettings | \
-				ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav)) \
+				ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | \
+				additional_flags)) \
 		{ \
 			content_macro \
 		} \
 		ImGui::End(); \
 	}
+
 #define QZ_MAKE_UX_POS(x, y) \
 	ImVec2 window_pos(x, y); \
 	ImVec2 window_pos_pivot(0.0f, 0.0f); \
@@ -77,13 +79,75 @@
 	ImVec2 window_pos_pivot = \
 	    ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f); \
 	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+#define QZ_MAKE_UX_CENTERED_POS(offset_x, offset_y) \
+	ImGuiIO& io = ImGui::GetIO(); \
+	ImVec2 window_pos = ImVec2(io.DisplaySize.x / 2, io.DisplaySize.y / 2); \
+	ImVec2 window_pos_pivot(0.0f, 0.0f); \
+	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+
 #define QZ_MAKE_UX_ELEM_NO_WINDOW_DEFAULT(name, x, y, content) \
-	QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, 0, QZ_MAKE_UX_POS(x, y), 0.0f, content)
+	QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, 0, QZ_MAKE_UX_POS(x, y), 0.0f, content, 0)
 #define QZ_MAKE_UX_ELEM_CORNERED_BG_ALPHA(name, corner, bg_alpha, content) \
-	QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, corner, QZ_MAKE_UX_CORNER_POS(corner, 10.0f), bg_alpha, content)
+	QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, corner, QZ_MAKE_UX_CORNER_POS(corner, 10.0f), bg_alpha, content, 0)
+#define QZ_MAKE_UX_ELEM_NO_WINDOW_CENTERED(name, bg_alpha, rx, ry, content) \
+	QZ_MAKE_UX_ELEM_NO_WINDOW__PRIVATE(name, 0, QZ_MAKE_UX_CENTERED_POS(rx, ry), bg_alpha, content, ImGuiWindowFlags_NoBackground)
 
 using namespace launcher;
 using namespace qz;
+
+static void spawnProcess(const char* fullpath, std::initializer_list<const char*> args)
+{
+#if defined(QZ_PLATFORM_WINDOWS)
+	STARTUPINFO siStartupInfo;
+	PROCESS_INFORMATION piProcessInfo;
+
+	// set the size of the structures
+	ZeroMemory(&siStartupInfo, sizeof(siStartupInfo));
+	siStartupInfo.cb = sizeof(siStartupInfo);
+	ZeroMemory(&piProcessInfo, sizeof(piProcessInfo));
+
+	std::string str_cmd(fullpath);
+
+	size_t length = strlen(fullpath) + 1;
+	for (const char* arg : args)
+	{
+		length += strlen(arg) + 1;
+		str_cmd += " ";
+		str_cmd += arg;
+	}
+	wchar_t* command = new wchar_t[length];
+	mbstowcs(command, str_cmd.c_str(), length);
+
+	if (CreateProcessW(NULL, (LPWSTR) command,
+		0, 0, false, CREATE_DEFAULT_ERROR_MODE | CREATE_NO_WINDOW | DETACHED_PROCESS,
+		0, 0, &siStartupInfo, &piProcessInfo) == false)
+	{
+		LFATAL("Couldn't build process, error code: ", GetLastError());
+	}
+	delete[] command;
+#elif defined(QZ_PLATFORM_LINUX)
+	pid_t pid;
+	char** argv = new char*[2 + args.size()];
+	argv[0] = strdup(fullpath);
+	std::size_t i = 0;
+	for (const char* elem : args)
+	{
+		argv[1 + i] = strdup(elem);
+		i++;
+	}
+	argv[1 + args.size()] = (char *) 0;
+
+	int status = posix_spawn(&pid, fullpath, NULL, NULL, argv, environ);
+	if (status != 0)
+	{
+		LFATAL("Failed posix_spawn: ", strerror(status));
+	}
+
+	for (int i=0; i < 2 + args.size(); ++i)
+		delete[] argv[i];
+	delete[] argv;
+#endif  // QZ_PLATFORM
+}
 
 Launcher::Launcher()
 {
@@ -92,10 +156,15 @@ Launcher::Launcher()
 
 	utils::Logger::instance()->initialise("Launcher.log",
 	                                      utils::LogVerbosity::DEBUG);
-	spawnProcess("/bin/ls", {"-l", "-a", "-s"});
 }
 
 QZ_MAKE_UX_ELEM_CORNERED_BG_ALPHA(Hint, 1, 0.3f, ImGui::Text("info box here");)
+QZ_MAKE_UX_ELEM_NO_WINDOW_CENTERED(StartButton, 0.0f, 10.0f, 5.0f,
+	if (ImGui::Button("Start")) {
+		// #todo remove, just testing (Linux only ATM)
+		spawnProcess("/bin/ls", {"-l", "-a", "-s"});
+	}
+)
 
 void Launcher::run()
 {
@@ -154,7 +223,7 @@ void Launcher::run()
 		ImGui::Checkbox("Wireframe", &wireframe);
 		ImGui::Text("FPS: %i frame/s", fpsCurrent);
 		ImGui::Text("Frame Time: %.2f ms/frame", static_cast<double>(dt));
-		ImGui::Text("Vertices: %i", renderer.countTotalNumVertices());
+		ImGui::Text("Vertices: %lu", renderer.countTotalNumVertices());
 		ImGui::SliderInt("Frame Time Sample Rate", &dtSampleRate, 1, 60);
 		ImGui::Checkbox("Pause Frame Time", &pauseDt);
 
@@ -205,6 +274,7 @@ void Launcher::run()
 		renderer.setViewMatrix(m_camera->calculateViewMatrix());
 
 		showHintUi();
+		showStartButtonUi();
 
 		renderer.render();
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -232,60 +302,6 @@ void Launcher::onEvent(const events::Event& e)
 	{
 		m_camera->resizeProjection(e);
 	}
-}
-
-void Launcher::spawnProcess(const char* fullpath, std::initializer_list<const char*> args)
-{
-#if defined(QZ_PLATFORM_WINDOWS)
-	STARTUPINFO siStartupInfo;
-	PROCESS_INFORMATION piProcessInfo;
-
-	// set the size of the structures
-	ZeroMemory(&siStartupInfo, sizeof(siStartupInfo));
-	siStartupInfo.cb = sizeof(siStartupInfo);
-	ZeroMemory(&piProcessInfo, sizeof(piProcessInfo));
-
-	std::string str_cmd(fullpath);
-
-	size_t length = strlen(fullpath) + 1;
-	for (const char* arg : args)
-	{
-		length += strlen(arg) + 1;
-		str_cmd += " ";
-		str_cmd += arg;
-	}
-	wchar_t* command = new wchar_t[length];
-	mbstowcs(command, str_cmd.c_str(), length);
-
-	if (CreateProcessW(NULL, (LPWSTR) command,
-		0, 0, false, CREATE_DEFAULT_ERROR_MODE | CREATE_NO_WINDOW | DETACHED_PROCESS,
-		0, 0, &siStartupInfo, &piProcessInfo) == false)
-	{
-		LFATAL("Couldn't build process, error code: ", GetLastError());
-	}
-	delete[] command;
-#elif defined(QZ_PLATFORM_LINUX)
-	pid_t pid;
-	char** argv = new char*[2 + args.size()];
-	argv[0] = strdup(fullpath);
-	std::size_t i = 0;
-	for (const char* elem : args)
-	{
-		argv[1 + i] = strdup(elem);
-		i++;
-	}
-	argv[1 + args.size()] = (char *) 0;
-
-	int status = posix_spawn(&pid, fullpath, NULL, NULL, argv, environ);
-	if (status != 0)
-	{
-		LFATAL("Failed posix_spawn: ", strerror(status));
-	}
-
-	for (int i=0; i < 2 + args.size(); ++i)
-		delete[] argv[i];
-	delete[] argv;
-#endif  // QZ_PLATFORM
 }
 
 #undef main

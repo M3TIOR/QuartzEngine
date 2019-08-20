@@ -47,8 +47,6 @@ namespace launcher
 		void onEvent(const qz::events::Event& e) override;
 
 	private:
-		void spawnProcess(const char* fullpath, std::initializer_list<const char*> args);
-
 		qz::gfx::FPSCamera*          m_camera       = nullptr;
 		qz::gfx::rhi::IRenderDevice* m_renderDevice = nullptr;
 		qz::gfx::IWindow*            m_window       = nullptr;
