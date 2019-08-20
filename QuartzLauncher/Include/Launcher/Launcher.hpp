@@ -32,7 +32,7 @@
 #include <Quartz/Events/IEventListener.hpp>
 #include <Quartz/Graphics/RHI/IRenderDevice.hpp>
 
-#include <Landbox/DebugOverlay.hpp>
+#include <Launcher/DebugOverlay.hpp>
 
 namespace launcher
 {

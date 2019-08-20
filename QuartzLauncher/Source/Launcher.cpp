@@ -76,7 +76,7 @@ static void showHintUi()
 	            ImGuiWindowFlags_NoSavedSettings |
 	            ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
 	{
-		ImGui::Text("Press K to toggle developer tools!");
+		ImGui::Text("info box here");
 	}
 
 	ImGui::End();
@@ -90,153 +90,20 @@ void Launcher::run()
 	m_window->setVSync(false);
 	m_window->registerEventListener(this);
 
-	voxels::BlockRegistry* blocksRegistery = voxels::BlockRegistry::get();
-	blocksRegistery->registerBlock(
-	    {"Air", "core:air", voxels::BlockTypeCategory::AIR, {}});
-
-	voxels::BlockType* dirtBlockType = blocksRegistery->registerBlock(
-	    {"Dirt", "core:dirt", voxels::BlockTypeCategory::SOLID, {}});
-	voxels::BlockType* grassBlockType = blocksRegistery->registerBlock(
-	    {"Grass", "core:grass", voxels::BlockTypeCategory::SOLID, {}});
-
 	m_renderDevice = new GLRenderDevice();
 	m_renderDevice->create();
-	// #todo find some way of returning the sprite ID on creation (instead of
-	// having to do a lookup with the filepath again)
-	voxels::BlockTextureAtlas atlas(16, 16);
-	atlas.addTextureFile("assets/textures/grass_top.png");
-	atlas.addTextureFile("assets/textures/dirt.png");
-	atlas.addTextureFile("assets/textures/grass_side.png");
-	atlas.patch();
-
-	dirtBlockType->textures.setAll(
-	    atlas.getSpriteIDFromFilepath("assets/textures/dirt.png"));
-	grassBlockType->textures.setAll(
-	    atlas.getSpriteIDFromFilepath("assets/textures/grass_top.png"));
-
-	RectAABB dirtUVs  = atlas.getSpriteFromID(dirtBlockType->textures.front);
-	RectAABB grassUVs = atlas.getSpriteFromID(grassBlockType->textures.front);
-
-	gfx::Mesh cubeMesh(6 * 6);
-	cubeMesh.addVertex(
-	    {{-1.f, -1.f, -1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, -1.f, -1.0f}, dirtUVs.topLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, 1.f, -1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, 1.f, -1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, 1.f, -1.0f}, dirtUVs.bottomRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, -1.f, -1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-
-	cubeMesh.addVertex(
-	    {{-1.f, -1.f, 1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, -1.f, 1.0f}, dirtUVs.topLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, 1.f, 1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, 1.f, 1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, 1.f, 1.0f}, dirtUVs.bottomRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, -1.f, 1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-
-	cubeMesh.addVertex(
-	    {{-1.f, 1.f, 1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{-1.f, 1.f, -1.0f}, dirtUVs.topLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, -1.f, -1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, -1.f, -1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, -1.f, 1.0f}, dirtUVs.bottomRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, 1.f, 1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-
-	cubeMesh.addVertex({{1.f, 1.f, 1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, 1.f, -1.0f}, dirtUVs.topLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, -1.f, -1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	;
-	cubeMesh.addVertex({{1.f, -1.f, -1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	;
-	cubeMesh.addVertex(
-	    {{1.f, -1.f, 1.0f}, dirtUVs.bottomRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, 1.f, 1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-
-	cubeMesh.addVertex(
-	    {{-1.f, -1.f, -1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, -1.f, -1.0f}, dirtUVs.topLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, -1.f, 1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, -1.f, 1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, -1.f, 1.0f}, dirtUVs.bottomRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, -1.f, -1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-
-	cubeMesh.addVertex(
-	    {{-1.f, 1.f, -1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, 1.f, -1.0f}, dirtUVs.topLeft, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, 1.f, 1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex({{1.f, 1.f, 1.0f}, dirtUVs.topRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, 1.f, 1.0f}, dirtUVs.bottomRight, {1.f, 1.f, 1.f}});
-	cubeMesh.addVertex(
-	    {{-1.f, 1.f, -1.0f}, dirtUVs.bottomLeft, {1.f, 1.f, 1.f}});
-
-	const float GROUND_SIZE = 10.f;
-	const float COLOR       = 150.f / 255.f;
-
-	gfx::Mesh groundMesh(6);
-	groundMesh.addVertex({{-GROUND_SIZE, -2.f, -GROUND_SIZE},
-	                      grassUVs.topLeft,
-	                      {COLOR, COLOR, COLOR}});
-	groundMesh.addVertex({{-GROUND_SIZE, -2.f, GROUND_SIZE},
-	                      grassUVs.bottomLeft,
-	                      {COLOR, COLOR, COLOR}});
-	groundMesh.addVertex({{GROUND_SIZE, -2.f, GROUND_SIZE},
-	                      grassUVs.bottomRight,
-	                      {COLOR, COLOR, COLOR}});
-
-	groundMesh.addVertex({{GROUND_SIZE, -2.f, GROUND_SIZE},
-	                      grassUVs.bottomRight,
-	                      {COLOR, COLOR, COLOR}});
-	groundMesh.addVertex({{GROUND_SIZE, -2.f, -GROUND_SIZE},
-	                      grassUVs.topRight,
-	                      {COLOR, COLOR, COLOR}});
-	groundMesh.addVertex({{-GROUND_SIZE, -2.f, -GROUND_SIZE},
-	                      grassUVs.topLeft,
-	                      {COLOR, COLOR, COLOR}});
 
 	gfx::ForwardMeshRenderer renderer(m_renderDevice);
 	renderer.create();
 
 	m_camera = new gfx::FPSCamera(m_window);
+	m_camera->enable(false);
 
 	float     fov               = 90.f;
 	Matrix4x4 perspectiveMatrix = Matrix4x4::perspective(
 	    static_cast<float>(1280) / 720, fov, 100.f, 0.1f);
 	m_camera->setProjection(perspectiveMatrix);
 	renderer.setProjectionMatrix(m_camera->getProjection());
-
-	TextureHandle blocksTexture = m_renderDevice->createTexture(
-	    atlas.getPatchedTextureData(), atlas.getPatchedTextureWidth(),
-	    atlas.getPatchedTextureHeight());
-
-	gfx::PhongMaterial dirtMaterial;
-	dirtMaterial.texture = blocksTexture;
-	cubeMesh.setMaterial(dirtMaterial);
-
-	/* gfx::PhongMaterial grassMaterial;
-	grassMaterial.texture = blocksTexture;
-	groundMesh.setMaterial(grassMaterial); */
-
-	voxels::Terrain terrain(16,
-	                        [&](std::size_t x, std::size_t y, std::size_t z) {
-		                        (void) x;
-		                        (void) y;
-		                        (void) z;
-		                        return dirtBlockType;
-	                        });
-
-	renderer.submitMesh(&cubeMesh);
-	renderer.submitMesh(&groundMesh);
 
 	std::size_t fpsLastTime = SDL_GetTicks();
 	int         fpsCurrent  = 0;
@@ -264,61 +131,56 @@ void Launcher::run()
 
 		m_window->startFrame();
 
-		if (m_debugMode)
+		m_debug.show();
+
+		static bool wireframe = false;
+
+		ImGui::Begin("Stats");
+		ImGui::Checkbox("Wireframe", &wireframe);
+		ImGui::Text("FPS: %i frame/s", fpsCurrent);
+		ImGui::Text("Frame Time: %.2f ms/frame", static_cast<double>(dt));
+		ImGui::Text("Vertices: %i", renderer.countTotalNumVertices());
+		ImGui::SliderInt("Frame Time Sample Rate", &dtSampleRate, 1, 60);
+		ImGui::Checkbox("Pause Frame Time", &pauseDt);
+
+		if (t % dtSampleRate == 0 && !pauseDt)
 		{
-			m_debug.show();
-
-			static bool wireframe = false;
-
-			ImGui::Begin("Stats");
-			ImGui::Checkbox("Wireframe", &wireframe);
-			ImGui::Text("FPS: %i frame/s", fpsCurrent);
-			ImGui::Text("Frame Time: %.2f ms/frame", static_cast<double>(dt));
-			ImGui::Text("Vertices: %i", renderer.countTotalNumVertices());
-			ImGui::SliderInt("Frame Time Sample Rate", &dtSampleRate, 1, 60);
-			ImGui::Checkbox("Pause Frame Time", &pauseDt);
-
-			if (t % dtSampleRate == 0 && !pauseDt)
-			{
-				ImGui::PlotVariable("Frame Time: ", dt);
-			}
-			else
-			{
-				ImGui::PlotVariable("Frame Time: ", FLT_MAX);
-			}
-
-			if (ImGui::Checkbox("VSync", &vsync))
-			{
-				m_window->setVSync(vsync);
-			}
-
-			if (ImGui::Checkbox("Fullscreen", &fullscreen))
-			{
-				m_window->setFullscreen(fullscreen);
-			}
-
-			if (ImGui::SliderFloat("FoV", &fov, 0.f, 180.f))
-			{
-				perspectiveMatrix = Matrix4x4::perspective(
-				    static_cast<float>(1280) / 720, fov, 100.f, 0.1f);
-				renderer.setProjectionMatrix(perspectiveMatrix);
-			}
-
-			Vector3 cameraPosition = m_camera->getPosition();
-			ImGui::Text("Camera Position %.2f, %.2f, %.2f", cameraPosition.x,
-			            cameraPosition.y, cameraPosition.z);
-
-			ImGui::End();
-
-			m_renderDevice->showShaderDebugUI();
-
-			if (wireframe)
-			{
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			}
+			ImGui::PlotVariable("Frame Time: ", dt);
+		}
+		else
+		{
+			ImGui::PlotVariable("Frame Time: ", FLT_MAX);
 		}
 
-		terrain.tick(m_camera->getPosition());
+		if (ImGui::Checkbox("VSync", &vsync))
+		{
+			m_window->setVSync(vsync);
+		}
+
+		if (ImGui::Checkbox("Fullscreen", &fullscreen))
+		{
+			m_window->setFullscreen(fullscreen);
+		}
+
+		if (ImGui::SliderFloat("FoV", &fov, 0.f, 180.f))
+		{
+			perspectiveMatrix = Matrix4x4::perspective(
+				static_cast<float>(1280) / 720, fov, 100.f, 0.1f);
+			renderer.setProjectionMatrix(perspectiveMatrix);
+		}
+
+		Vector3 cameraPosition = m_camera->getPosition();
+		ImGui::Text("Camera Position %.2f, %.2f, %.2f", cameraPosition.x,
+					cameraPosition.y, cameraPosition.z);
+
+		ImGui::End();
+
+		m_renderDevice->showShaderDebugUI();
+
+		if (wireframe)
+		{
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		}
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -349,10 +211,7 @@ void Launcher::onEvent(const events::Event& e)
 {
 	if (e.type == events::EventType::KEY_PRESSED)
 	{
-		if (e.keyboard.key == events::Keys::KEY_ESCAPE)
-			m_camera->enable(!m_camera->isEnabled());
-		else if (e.keyboard.key == events::Keys::KEY_K)
-			m_debugMode = !m_debugMode;
+		// #todo
 	}
 	else if (e.type == events::EventType::WINDOW_RESIZED)
 	{
