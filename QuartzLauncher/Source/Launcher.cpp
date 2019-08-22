@@ -99,6 +99,11 @@ static void spawnProcess(const char* fullpath, std::initializer_list<const char*
 	STARTUPINFO siStartupInfo;
 	PROCESS_INFORMATION piProcessInfo;
 
+	wchar_t* buffer = new wchar_t[128];
+	std::string dir_str = "C:/";
+	mbstowcs(buffer, dir_str.c_str(), 128);
+	LPCWSTR dir = buffer;
+
 	// set the size of the structures
 	ZeroMemory(&siStartupInfo, sizeof(siStartupInfo));
 	siStartupInfo.cb = sizeof(siStartupInfo);
@@ -117,12 +122,13 @@ static void spawnProcess(const char* fullpath, std::initializer_list<const char*
 	mbstowcs(command, str_cmd.c_str(), length);
 
 	if (CreateProcessW(NULL, (LPWSTR) command,
-		0, 0, false, CREATE_DEFAULT_ERROR_MODE | CREATE_NO_WINDOW | DETACHED_PROCESS,
-		0, 0, &siStartupInfo, &piProcessInfo) == false)
+		0, 0, true, CREATE_DEFAULT_ERROR_MODE | CREATE_NEW_CONSOLE | CREATE_UNICODE_ENVIRONMENT,
+		0, dir, (LPSTARTUPINFOW) &siStartupInfo, &piProcessInfo) == false)
 	{
 		LFATAL("Couldn't build process, error code: ", GetLastError());
 	}
 	delete[] command;
+	delete[] buffer;
 #elif defined(QZ_PLATFORM_LINUX)
 	pid_t pid;
 	char** argv = new char*[2 + args.size()];
@@ -160,7 +166,7 @@ QZ_MAKE_UX_ELEM_CORNERED_BG_ALPHA(Hint, 1, 0.3f, ImGui::Text("info box here");)
 QZ_MAKE_UX_ELEM_NO_WINDOW_CENTERED(StartButton, 0.0f, 10.0f, 5.0f,
 	if (ImGui::Button("Start")) {
 		// #todo remove, just testing (Linux only ATM)
-		spawnProcess("/bin/ls", {"-l", "-a", "-s"});
+		spawnProcess("C:\\Windows\\System32\\cmd.exe", {"/c", "pause"});
 	}
 )
 
