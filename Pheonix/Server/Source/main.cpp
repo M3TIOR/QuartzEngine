@@ -7,20 +7,31 @@
 
 using namespace pheonix;
 
-int main()
+//CLI arguments
+//[0] save name
+void main(int argc, char* argv[])
 {
 	voxels::BlockRegistry registry = voxels::BlockRegistry();
 	registry.registerBlock("core:dirt", "Dirt");
 	registry.registerBlock("core:cobble", "CobbleStone");
 	registry.registerBlock("core:stone", "Stone");
+	// TODO: Replace these manual calls to register blocks with a call to run passed lua files
 
-	std::cout << registry.getDisplayName(1) << "\n";
-	std::cout << registry.getDisplayName(2) << "\n";
-	std::cout << registry.getDisplayName(3) << "\n";
+	/* -=- Begin Sudo draft -=-
+	Save::Load(argv[0]) //This will detect internally if a new map needs generated
 
-	std::cout << registry.getBlockId("core:stone") << "\n";
-	std::cout << registry.getBlockId("asdfadsf") << "\n";
-	std::cout << registry.getBlockId("core:dirt") << "\n";
+	std::thread listener (Network::Listener); //Start listener thread to listen for connections
+	
+	bool run = true;
+	while (run == true){
+		// Listen for CLI instructions
+	}
 
-	return 0;
+	Send signal for listener to terminate
+
+	Confirm map has saved
+
+	*/
+
+	return;
 };
